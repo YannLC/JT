@@ -11,7 +11,7 @@ public class Technique extends Item {
 
 	public String toString() {
 		String output = "";
-		output = "Technique : " + Type + "\n Decriptif : " + Descriptif + "\n Tags : " + Tags;
+		output = "Technique : " + Type + "\n Decriptif : " + Descriptif + "\n Tags : " + Tags + "\n";
 		return output;
 	}
 }
