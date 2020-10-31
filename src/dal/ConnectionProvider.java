@@ -6,7 +6,7 @@ import java.sql.DriverManager;
 
 public abstract class ConnectionProvider {
 	
-	private static String dbName = "TutorialDB";
+	private static String dbName = "Items";
 	
 	public static Connection getConnection() throws SQLException {
 		String dbURL = "jdbc:sqlserver://127.0.0.1\\JTDB;databaseName=" + dbName + ";Integrated Security=true;"; 
