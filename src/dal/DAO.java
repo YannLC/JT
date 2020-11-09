@@ -3,9 +3,6 @@ package dal;
 import dal.exceptions.DALException;
 import java.util.List;
 
-/**
- * @author Edouard
- */
 
 public interface DAO<T> {
 	
@@ -14,5 +11,7 @@ public interface DAO<T> {
     T selectById(int idObj) throws DALException;
     List<T> selectAll() throws DALException;
     void delete(int idObj) throws DALException;
+    int retrieveId(String Nom) throws DALException;
+    boolean checkInsert(T obj, String s) throws DALException;
 
 }
