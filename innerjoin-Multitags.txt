@@ -1,0 +1,31 @@
+-- select ID from Tags where (Nom = 'Unité' or Nom = 'Poomsae');
+
+--select * from Items
+--inner join (select * from ItemsTags inner join (select ID from Tags where (Nom = 'Unité' or Nom = 'Poomsae')) as y on y.ID = ItemsTags.IDTags) as x
+--on x.IDItems = Items.ID and (Items.Type ='Educatif' or Items.Type = 'Enchainement');
+
+-- Selectionner tous les items avec au moins un des tags
+select * from ItemsTags 
+inner join (select ID from Tags where (Nom = 'Unité' or Nom = 'Poomsae')) as y 
+on y.ID = ItemsTags.IDTags ;
+
+-- Compter les items qui apparaissent plusieurs fois (i.e. qui ont plusieurs tags)
+select IDItems, count(*) as countItem from 
+	(select * from ItemsTags inner join ( select ID from Tags where (Nom = 'Unité' or Nom = 'Poomsae') ) as y on y.ID = ItemsTags.IDTags) as x
+	group by x.IDItems;
+
+-- Ne garder que les items qui ont tous les tags (ici 2)
+select IDItems from (
+select IDItems, count(*) as countItem from 
+	(select * from ItemsTags inner join ( select ID from Tags where (Nom = 'Unité' or Nom = 'Poomsae') ) as y on y.ID = ItemsTags.IDTags) as x
+	group by x.IDItems) as y
+	where countItem = 2;  
+
+-- Récupérer les caractéristiques de ces items
+select * from Items 
+inner join ( select IDItems from (
+select IDItems, count(*) as countItem from 
+	(select * from ItemsTags inner join ( select ID from Tags where (Nom = 'Unité' or Nom = 'Poomsae') ) as y on y.ID = ItemsTags.IDTags) as x
+	group by x.IDItems) as y
+	where countItem = 2 ) as z
+	on Items.ID = z.IDItems and (Items.Type ='Educatif' or Items.Type = 'Enchainement');
