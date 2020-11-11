@@ -544,9 +544,35 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 		
 	}
 	
-	public boolean checkInsertItemsTagsList(String Nom) {
+	public boolean checkInsertItemsTagsList(String Nom) throws DALException {
 		boolean checked = true;
-		
+		Connection con = null;
+		Statement stmt = null;
+		try {
+			con = ConnectionProvider.getConnection();
+			stmt = con.createStatement();
+			PreparedStatement query = con.prepareStatement("select Nom from ItemsTagsList where Nom = ?");
+			query.setString(1, Nom);
+			ResultSet rs = query.executeQuery();
+			if (rs.next()) {
+				checked = false;
+			}
+			try {
+				rs.close();
+			} catch (Exception e) {
+				e.printStackTrace();
+				throw new DALException("Erreur closeResult");
+			}
+		} catch (SQLException throwables) {
+			throwables.printStackTrace();
+		} finally {
+			try {
+				con.close();
+				stmt.close();
+			} catch (Exception e) {
+				throw new DALException("Erreur fermeture");
+			}
+		}
 		return checked;
 	}
 	
@@ -580,6 +606,54 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 		}
 	}
 	
+	public List<String> getAllNames() throws DALException {
+		ResultSet listEnchreq = null ;
+		List<String> listEnch = new ArrayList<>();
+		Connection con = null;
+		Statement stmt = null;
+
+		try {
+			con = ConnectionProvider.getConnection();
+			stmt = con.createStatement();
+			PreparedStatement query = con.prepareStatement("select Nom FROM ItemsTagsList ;");
+			boolean isResultSet = query.execute();
+
+			while (true) {
+				if (isResultSet) {
+					listEnchreq = query.getResultSet() ;
+					while(listEnchreq.next()) {
+						listEnch.add(listEnchreq.getString("Nom"));
+					}
+					try {
+						listEnchreq.close();
+					} catch (Exception e) {
+						e.printStackTrace();
+						throw new DALException("Erreur closeResult");
+					}
+				}
+				else {
+					if(query.getUpdateCount() == -1) {
+						break;
+					}
+				}
+				isResultSet = query.getMoreResults();
+			}
+		} catch (SQLException throwables) {
+			throwables.printStackTrace();
+		} finally {
+			try {
+				con.close();
+				stmt.close();
+			} catch (Exception e) {
+				throw new DALException("Erreur fermeture");
+			}
+		}
+
+		return listEnch;
+		
+	}
+	
+	
 	public String retrieveType(String det) throws DALException {
 		String type = "";
 		Connection con = null;
@@ -612,4 +686,85 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 		
 		return type;
 	}
+	
+	public List<String> getEtapesFromDB(int ID) throws DALException {
+		List<String> etapes = new ArrayList();
+		String allEtapes = "";
+		
+		Connection con = null;
+		Statement stmt = null;
+		try {
+			con = ConnectionProvider.getConnection();
+			stmt = con.createStatement();
+			PreparedStatement query = con.prepareStatement("select Etapes from Enchainements where ID = ?");
+			query.setInt(1, ID);
+			ResultSet rs = query.executeQuery();
+			if (rs.next()) {
+				allEtapes = rs.getString("Etapes");
+			}
+			try {
+				rs.close();
+			} catch (Exception e) {
+				e.printStackTrace();
+				throw new DALException("Erreur closeResult");
+			}
+		} catch (SQLException throwables) {
+			throwables.printStackTrace();
+		} finally {
+			try {
+				con.close();
+				stmt.close();
+			} catch (Exception e) {
+				throw new DALException("Erreur fermeture");
+			}
+		}
+		
+
+		String[] splAllEtapes = allEtapes.split(";");
+		for (String temp : splAllEtapes) {
+			etapes.add(temp);
+		}
+		return etapes;	
+	}
+	
+	public List<String> getDetailsFromDB(int ID) throws DALException {
+		List<String> details = new ArrayList();
+		String allEtapes = "";
+		
+		Connection con = null;
+		Statement stmt = null;
+		try {
+			con = ConnectionProvider.getConnection();
+			stmt = con.createStatement();
+			PreparedStatement query = con.prepareStatement("select Details from Enchainements where ID = ?");
+			query.setInt(1, ID);
+			ResultSet rs = query.executeQuery();
+			if (rs.next()) {
+				allEtapes = rs.getString("Details");
+			}
+			try {
+				rs.close();
+			} catch (Exception e) {
+				e.printStackTrace();
+				throw new DALException("Erreur closeResult");
+			}
+		} catch (SQLException throwables) {
+			throwables.printStackTrace();
+		} finally {
+			try {
+				con.close();
+				stmt.close();
+			} catch (Exception e) {
+				throw new DALException("Erreur fermeture");
+			}
+		}
+		
+
+		String[] splAllEtapes = allEtapes.split(";");
+		for (String temp : splAllEtapes) {
+			details.add(temp);
+		}
+		return details;	
+	}
+	
 }

@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 
+import GUI.Gui;
 import bo.Item;
 import bo.Tag;
 import bo.Technique;
@@ -41,8 +42,8 @@ public class Controler {
 
 		//// Reading Tags and filling the Tags table
 		String fileTags = "D:\\Documents\\TKD\\Cahier technique\\Database\\InitTables\\Tags.txt";
-		readFileTag(fileTags);
-		//List<Tag> listTag = readFileTag(fileTags);
+		//readFileTag(fileTags);
+		List<Tag> listTag = readFileTag(fileTags);
 
 		//// Reading item files and filling the DB
 		String stemItems = "D:\\Documents\\TKD\\Cahier technique\\Database\\Exercices\\";
@@ -50,10 +51,7 @@ public class Controler {
 		readAllItems(stemItems);
 		readAllFilesItems(stemItems);
 		processDB();
-		// Testing the checking of exisiting tags
-		// String test = "Ap chagi";
-		// System.out.println(" Tag : " + test + " exists in a database : " + existingTag(test) );
-
+	   
 		// Testing a request
 
 		String stemSaves = "D:\\Documents\\TKD\\Cahier technique\\Database\\Fiches\\";
@@ -64,7 +62,15 @@ public class Controler {
 		Details.add("Educatif");
 		Details.add("Technique");
 
-		excecuteRequest(keyword, Details, stemSaves);
+		String res = "Test";
+		// res = excecuteRequest(keyword, Details, stemSaves);
+		
+		// Test if GUI
+		
+		Gui gui = new Gui();
+		
+		//gui.displayResults(res);
+		
 		// End of main()
 	}
 
@@ -488,7 +494,20 @@ public class Controler {
 							fiche2 = fiche2 + display + "\n##########\n";						
 						}
 						if (type.equals("Enchainement")) {
-							// Requetes pour chercher les étapes !		
+							// Requetes pour chercher les étapes !	
+							String Nom = listItemsReq.getString("Nom");
+							String Descriptif = listItemsReq.getString("Descriptif");
+							int Niveau = listItemsReq.getInt("Niveau");
+							String fileName = listItemsReq.getString("Filename");
+							String Nombre = listItemsReq.getString("Nombre");
+							String Pratiquant = listItemsReq.getString("Pratiquants");
+							String Dispositif = listItemsReq.getString("Dispositif");
+							List<String> etapes = ((ItemDAOJdbcImpl) ItemDAO).getEtapesFromDB(idK);
+							List<String> details = ((ItemDAOJdbcImpl) ItemDAO).getDetailsFromDB(idK);
+							//String Nom, String Descriptif, List<String> Tags, List<String> etapes, int Niveau, String Filename, List<String> details, String Nombre, String Pratiquants, String Dispositif
+							Enchainement it = new Enchainement(Nom, Descriptif, null, etapes, Niveau, fileName, details, Nombre, Pratiquant, Dispositif);
+							String display = it.toString();
+							fiche2 = fiche2 + display + "\n##########\n";	
 						}
 					}
 					try {
@@ -521,18 +540,47 @@ public class Controler {
 		return fiche2;
 	}
 
-	public static void excecuteRequest(String keyword, List<String> details, String path) throws DALException, FileNotFoundException {
+	public static String excecuteRequest(String keyword, List<String> details, String typeSelected, String path) throws DALException, FileNotFoundException {
 		// generates a .txt file with the result of the request
 		String typeKeyWord = ((ItemDAOJdbcImpl) ItemDAO).retrieveType(keyword.trim());
 		int idKeyWord = genericRetrieveId(keyword.trim());
-		String type2KeyWord =((ItemDAOJdbcImpl) ItemDAO).retrieveType2(idKeyWord);;
+		String type2KeyWord =((ItemDAOJdbcImpl) ItemDAO).retrieveType2(idKeyWord);
+		System.out.println(type2KeyWord);
 		String fiche = "";
+
+		if ( typeSelected.equals("Choisir un type") ){
+			fiche = "Merci de choisir un type pour la requête";
+			return fiche;
+		}
+		
+		String typeKeyWord2 = type2KeyWord;
+		if (typeKeyWord2.equals("Echauffement")) {
+			typeKeyWord2 = "Technique";
+		}
+		if (typeKeyWord2.equals("Etirement")) {
+			typeKeyWord2 = "Technique";
+		}
+		if (typeKeyWord2.equals("Educatif")) {
+			typeKeyWord2 = "Technique";
+		}
+
+		if (   !typeSelected.equals(typeKeyWord2)  ){
+			fiche = "Type sélectionné incorrect";
+			return fiche;
+		}
+		
 		if (idKeyWord == 0) {
 			System.out.println("KeyWord not found");
 		}
 		else {		
 			if (typeKeyWord.equals("Item")) {	
-				if (details.contains("Echauffement")) {
+				
+				if (type2KeyWord.equals("Enchainement")) {
+					fiche = fiche + "#####" + keyword + "######\n\n";
+					fiche = addType(idKeyWord, fiche, "Enchainement");
+				}
+							
+				if (details.contains("Echauffement") ) {
 					fiche = "##### Echauffements ######\n\n" + fiche;
 					fiche = addType(idKeyWord, fiche, "Echauffement");
 				}
@@ -552,7 +600,7 @@ public class Controler {
 				}
 				
 				if (details.contains("Enchainement")) {
-
+					
 				}
 				if (details.contains("Etirement")) {
 					fiche = fiche + "##### Etirement ######\n\n";
@@ -571,7 +619,7 @@ public class Controler {
 		try (PrintWriter out = new PrintWriter(path + "requete.txt")) {
 			out.println(fiche);
 		}
-
+		return fiche;
 	}
 
 	public static void processDB() throws DALException {
