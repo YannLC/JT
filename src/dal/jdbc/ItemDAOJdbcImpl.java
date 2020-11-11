@@ -11,6 +11,7 @@ import java.util.List;
 import bo.Enchainement;
 import bo.Item;
 import bo.Tag;
+import bo.Technique;
 import dal.ConnectionProvider;
 import dal.DAO;
 import dal.Factory;
@@ -102,11 +103,11 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 			try {
 				con = ConnectionProvider.getConnection();
 				if (!item.getDetails().isEmpty()) {
-				stmt = con.prepareStatement("insert into Enchainements (ID, Etapes, Details) values (?,?,?)");
-				stmt.setInt(1, retrieveId(item.getNom()));
-				stmt.setString(2, item.getEtapesString(item.getEtapes()));
-				stmt.setString(3, item.getEtapesString(item.getDetails()));
-				//System.out.println(item.getEtapesString(item.getEtapes()));
+					stmt = con.prepareStatement("insert into Enchainements (ID, Etapes, Details) values (?,?,?)");
+					stmt.setInt(1, retrieveId(item.getNom()));
+					stmt.setString(2, item.getEtapesString(item.getEtapes()));
+					stmt.setString(3, item.getEtapesString(item.getDetails()));
+					//System.out.println(item.getEtapesString(item.getEtapes()));
 				}
 				else {
 					stmt = con.prepareStatement("insert into Enchainements (ID, Etapes) values (?,?)");
@@ -168,7 +169,7 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 					throw new DALException("Erreur insert");
 				} 
 			}
-			
+
 		} catch (SQLException throwables) {
 			throwables.printStackTrace();
 			throw new DALException("Erreur insert");
@@ -232,44 +233,130 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 
 	@Override
 	public Item selectById(int noItem) throws DALException {
-		//		Retrait retrait = null;
-		//		Connection con = null;
-		//		Statement stmt = null;
-		//		try {
-		//			con = ConnectionProvider.getConnection();
-		//			stmt = con.createStatement();
-		//			PreparedStatement query = con.prepareStatement(
-		//					"select * from retraits join ventes on retraits.no_vente=ventes.no_vente "
-		//					+ "join categories on categories.no_categorie = ventes.no_categorie "
-		//					+ "join utilisateurs on ventes.no_utilisateur = utilisateurs.no_utilisateur "
-		//					+ "where ventes.no_vente = ?");
-		//			query.setInt(1, noVente);
-		//			ResultSet rs = query.executeQuery();
-		//			if (rs.next()) {
-		//				retrait = new Retrait(
-		//						new Vente(rs.getInt("no_vente"), rs.getString("nom_article"), rs.getString("description"), rs.getDate("date_fin_encheres"), rs.getInt("prix_initial"), rs.getInt("prix_vente"), 
-		//								new Utilisateur(rs.getInt("no_utilisateur"),rs.getString("pseudo"),rs.getString("nom"), rs.getString("prenom"), rs.getString("email"),
-		//										rs.getString("tel"), rs.getString("rue"), rs.getString("cp"), rs.getString("ville"), rs.getString("mdp"), rs.getInt("credit")), 
-		//								new Categorie(rs.getInt("no_categorie"), rs.getString("libelle"))),
-		//						rs.getString("rue"), rs.getString("ville"),rs.getString("code_postal"));
-		//			}
-		//			try {
-		//				rs.close();
-		//			} catch (Exception e) {
-		//				e.printStackTrace();
-		//				throw new DALException("Erreur closeResult");
-		//			}
-		//		} catch (SQLException throwables) {
-		//			throwables.printStackTrace();
-		//		} finally {
-		//			try {
-		//				con.close();
-		//				stmt.close();
-		//			} catch (Exception e) {
-		//				throw new DALException("Erreur fermeture");
-		//			}
-		//		}
-		return null;
+
+		Connection con = null;
+		Statement stmt = null;
+		Item it = null;
+
+		try {
+			con = ConnectionProvider.getConnection();
+			stmt = con.createStatement();
+			PreparedStatement query = con.prepareStatement("select * from Items where ID = ?");
+			query.setInt(1, noItem);
+			ResultSet listItemsReq = query.executeQuery();
+			if (listItemsReq.next()) {
+				String type = listItemsReq.getString("Type");
+				if (!type.equals("Enchainement")) {
+					// type, Nom, Descriptif,Tags, Niveau, Filename, Nombre, Public, Dispositif
+					String Nom = listItemsReq.getString("Nom");
+					String Descriptif = listItemsReq.getString("Descriptif");
+					int Niveau = listItemsReq.getInt("Niveau");
+					String fileName = listItemsReq.getString("Filename");
+					String Nombre = listItemsReq.getString("Nombre");
+					String Pratiquant = listItemsReq.getString("Pratiquants");
+					String Dispositif = listItemsReq.getString("Dispositif");
+					it = new Technique( type, Nom ,Descriptif, null , Niveau, fileName, Nombre, Pratiquant, Dispositif  );	
+					it.setId(noItem);
+				}
+				if (type.equals("Enchainement")) {
+					// Requetes pour chercher les étapes !	
+					String Nom = listItemsReq.getString("Nom");
+					String Descriptif = listItemsReq.getString("Descriptif");
+					int Niveau = listItemsReq.getInt("Niveau");
+					String fileName = listItemsReq.getString("Filename");
+					String Nombre = listItemsReq.getString("Nombre");
+					String Pratiquant = listItemsReq.getString("Pratiquants");
+					String Dispositif = listItemsReq.getString("Dispositif");
+					List<String> etapes = getEtapesFromDB(noItem);
+					List<String> details = getDetailsFromDB(noItem);
+					//String Nom, String Descriptif, List<String> Tags, List<String> etapes, int Niveau, String Filename, List<String> details, String Nombre, String Pratiquants, String Dispositif
+					it = new Enchainement(Nom, Descriptif, null, etapes, Niveau, fileName, details, Nombre, Pratiquant, Dispositif);
+					it.setId(noItem);
+				}
+			}
+			try {
+				listItemsReq.close();
+			} catch (Exception e) {
+				e.printStackTrace();
+				throw new DALException("Erreur closeResult");
+			}
+		} catch (SQLException throwables) {
+			throwables.printStackTrace();
+		} finally {
+			try {
+				con.close();
+				stmt.close();
+			} catch (Exception e) {
+				throw new DALException("Erreur fermeture");
+			}
+		}
+
+		//System.out.println("Retrieved Id for item " + Nom + " : " + idItem);	
+
+		return it;
+	}
+
+	public Item selectByNom(String Nom) throws DALException {
+		Connection con = null;
+		Statement stmt = null;
+		Item it = null ;
+
+		try {
+			con = ConnectionProvider.getConnection();
+			stmt = con.createStatement();
+			PreparedStatement query = con.prepareStatement("select * from Items where Nom = ?");
+			query.setString(1, Nom);
+			ResultSet listItemsReq = query.executeQuery();
+			if (listItemsReq.next()) {
+				String type = listItemsReq.getString("Type");
+				if (!type.equals("Enchainement")) {
+					// type, Nom, Descriptif,Tags, Niveau, Filename, Nombre, Public, Dispositif
+					int ID = listItemsReq.getInt("ID");
+					String Descriptif = listItemsReq.getString("Descriptif");
+					int Niveau = listItemsReq.getInt("Niveau");
+					String fileName = listItemsReq.getString("Filename");
+					String Nombre = listItemsReq.getString("Nombre");
+					String Pratiquant = listItemsReq.getString("Pratiquants");
+					String Dispositif = listItemsReq.getString("Dispositif");
+					it = new Technique( type, Nom ,Descriptif, null , Niveau, fileName, Nombre, Pratiquant, Dispositif  );
+					it.setId(ID);
+				}
+				if (type.equals("Enchainement")) {
+					// Requetes pour chercher les étapes !	
+					int ID = listItemsReq.getInt("ID");
+					String Descriptif = listItemsReq.getString("Descriptif");
+					int Niveau = listItemsReq.getInt("Niveau");
+					String fileName = listItemsReq.getString("Filename");
+					String Nombre = listItemsReq.getString("Nombre");
+					String Pratiquant = listItemsReq.getString("Pratiquants");
+					String Dispositif = listItemsReq.getString("Dispositif");
+					List<String> etapes = getEtapesFromDB(ID);
+					List<String> details = getDetailsFromDB(ID);
+					//String Nom, String Descriptif, List<String> Tags, List<String> etapes, int Niveau, String Filename, List<String> details, String Nombre, String Pratiquants, String Dispositif
+					it = new Enchainement(Nom, Descriptif, null, etapes, Niveau, fileName, details, Nombre, Pratiquant, Dispositif);
+					it.setId(ID);
+				}
+			}
+			try {
+				listItemsReq.close();
+			} catch (Exception e) {
+				e.printStackTrace();
+				throw new DALException("Erreur closeResult");
+			}
+		} catch (SQLException throwables) {
+			throwables.printStackTrace();
+		} finally {
+			try {
+				con.close();
+				stmt.close();
+			} catch (Exception e) {
+				throw new DALException("Erreur fermeture");
+			}
+		}
+
+		//System.out.println("Retrieved Id for item " + Nom + " : " + idItem);	
+
+		return it;
 	}
 
 	@Override
@@ -314,7 +401,7 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 		//System.out.println("Retrieved Id for item " + Nom + " : " + idItem);
 		return idItem;
 	}
-	
+
 	public String retrieveType2(int  ID) throws DALException {
 		String type = "";
 		Connection con = null;
@@ -354,18 +441,18 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 		boolean checked = true;
 		Connection con = null;
 		Statement stmt = null;
-		
+
 		try {
 			con = ConnectionProvider.getConnection();
 			stmt = con.createStatement();
 			PreparedStatement query = null ;
-			
+
 			if (db.equals("ItemsItems"))  {
 				query = con.prepareStatement("select * from " + db +" where IDItems1 = ? AND  IDItems2 = ?;");
 				query.setInt(1,  ID1 );
 				query.setInt(2,  ID2 );
 			}
-			
+
 			if (db.equals("ItemsTags"))  {
 				query = con.prepareStatement("select * from " + db + " where IDItems = ? AND  IDTags = ? ;");
 				query.setInt(1,  ID1 );
@@ -392,12 +479,12 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 				throw new DALException("Erreur fermeture");
 			}
 		}
-		
-		
+
+
 		return checked;
-		
+
 	}
-	
+
 	public boolean checkInsert(Item item, String db)throws DALException {
 		boolean checked = true;
 		Connection con = null;
@@ -526,9 +613,9 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 		if (!listEnch.isEmpty()) {
 			for (String nameI : listEnch) {
 				// System.out.println("Namei : " + nameI);
-				 String[] splitted = nameI.split("-");
+				String[] splitted = nameI.split("-");
 				if (splitted.length > 1 ) {
-				curintString = splitted[1];
+					curintString = splitted[1];
 				}
 				curint = Integer.parseInt(curintString);
 				if (curint > maxint) {
@@ -541,9 +628,9 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 	}
 
 	public void sqlItemRequest(int IDitem, int IDTag) {
-		
+
 	}
-	
+
 	public boolean checkInsertItemsTagsList(String Nom) throws DALException {
 		boolean checked = true;
 		Connection con = null;
@@ -575,7 +662,7 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 		}
 		return checked;
 	}
-	
+
 	public void InsertItemsTagsList(int ID, String Nom, String type) throws DALException {
 		if (checkInsertItemsTagsList(Nom)) {
 			Connection con = null;
@@ -605,7 +692,7 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 			}
 		}
 	}
-	
+
 	public List<String> getAllNames() throws DALException {
 		ResultSet listEnchreq = null ;
 		List<String> listEnch = new ArrayList<>();
@@ -650,10 +737,10 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 		}
 
 		return listEnch;
-		
+
 	}
-	
-	
+
+
 	public String retrieveType(String det) throws DALException {
 		String type = "";
 		Connection con = null;
@@ -683,14 +770,14 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 				throw new DALException("Erreur fermeture");
 			}
 		}
-		
+
 		return type;
 	}
-	
+
 	public List<String> getEtapesFromDB(int ID) throws DALException {
 		List<String> etapes = new ArrayList();
 		String allEtapes = "";
-		
+
 		Connection con = null;
 		Statement stmt = null;
 		try {
@@ -718,7 +805,7 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 				throw new DALException("Erreur fermeture");
 			}
 		}
-		
+
 
 		String[] splAllEtapes = allEtapes.split(";");
 		for (String temp : splAllEtapes) {
@@ -726,11 +813,11 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 		}
 		return etapes;	
 	}
-	
+
 	public List<String> getDetailsFromDB(int ID) throws DALException {
 		List<String> details = new ArrayList();
 		String allEtapes = "";
-		
+
 		Connection con = null;
 		Statement stmt = null;
 		try {
@@ -758,13 +845,14 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 				throw new DALException("Erreur fermeture");
 			}
 		}
-		
 
-		String[] splAllEtapes = allEtapes.split(";");
-		for (String temp : splAllEtapes) {
-			details.add(temp);
+		if (allEtapes!=null) {
+			String[] splAllEtapes = allEtapes.split(";");
+			for (String temp : splAllEtapes) {
+				details.add(temp);
+			}
 		}
 		return details;	
 	}
-	
+
 }

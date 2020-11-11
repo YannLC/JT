@@ -18,6 +18,7 @@ import dal.ConnectionProvider;
 import dal.DAO;
 import dal.exceptions.DALException;
 import dal.jdbc.ItemDAOJdbcImpl;
+import dal.jdbc.TagDAOJdbcImpl;
 import dal.Factory;
 
 
@@ -42,7 +43,6 @@ public class Controler {
 
 		//// Reading Tags and filling the Tags table
 		String fileTags = "D:\\Documents\\TKD\\Cahier technique\\Database\\InitTables\\Tags.txt";
-		//readFileTag(fileTags);
 		List<Tag> listTag = readFileTag(fileTags);
 
 		//// Reading item files and filling the DB
@@ -51,26 +51,15 @@ public class Controler {
 		readAllItems(stemItems);
 		readAllFilesItems(stemItems);
 		processDB();
-	   
+
 		// Testing a request
 
-		String stemSaves = "D:\\Documents\\TKD\\Cahier technique\\Database\\Fiches\\";
+		//String stemSaves = "D:\\Documents\\TKD\\Cahier technique\\Database\\Fiches\\";
 
-		String keyword = "Ap Chagi"; // "Ap Chagi" 
-		List<String> Details = new ArrayList<String>(); 
-		Details.add("Echauffement");
-		Details.add("Educatif");
-		Details.add("Technique");
+		// Test of GUI
 
-		String res = "Test";
-		// res = excecuteRequest(keyword, Details, stemSaves);
-		
-		// Test if GUI
-		
 		Gui gui = new Gui();
-		
-		//gui.displayResults(res);
-		
+
 		// End of main()
 	}
 
@@ -381,7 +370,10 @@ public class Controler {
 			if (!firstWord.isEmpty()) {
 				if (firstWord.substring(0, 1).equals("#")) {
 					if (Type.equals("Technique") || Type.equals("Etirement") || Type.equals("Echauffement") || Type.equals("Educatif") )  {
-						List<String> Tags_temp =  new ArrayList<String>(Tags); 
+						List<String> Tags_temp =  new ArrayList<String>(Tags);
+						Tags_temp.add(Type);
+						Tags_temp.add("Nombre : " + Nombre);
+						Tags_temp.add("Pratiquants : " + Pratiquants);
 						it = new Technique(Type, Nom, Descriptif, Tags_temp, Niveau, filename, Nombre, Pratiquants, Dispositif);
 						listIT.add(it);
 						ItemDAO.insert(it);
@@ -390,8 +382,11 @@ public class Controler {
 					else if (Type.equals("Enchainement")) {
 						List<String> Etapes_temp =  new ArrayList<String>(Etapes); 
 						List<String> Details_temp =  new ArrayList<String>(Details);
-						//String autoname = "Enchainement " + ((ItemDAOJdbcImpl) ItemDAO).getNewNameEnchainement();
-						it = new Enchainement(Nom, Descriptif, Tags, Etapes_temp, Niveau, filename, Details_temp, Nombre, Pratiquants, Dispositif);
+						List<String> Tags_temp =  new ArrayList<String>(Tags);
+						Tags_temp.add(Type);
+						Tags_temp.add("Nombre : " + Nombre);
+						Tags_temp.add("Pratiquants : " + Pratiquants);
+						it = new Enchainement(Nom, Descriptif, Tags_temp, Etapes_temp, Niveau, filename, Details_temp, Nombre, Pratiquants, Dispositif);
 						listIT.add(it);
 						ItemDAO.insert(it);
 						((ItemDAOJdbcImpl) ItemDAO).insertEnchainement((Enchainement) it);
@@ -460,6 +455,69 @@ public class Controler {
 		return idKeyWord;
 	}
 
+	public static String fetchEnchForItem(int idK, String fiche) throws DALException {
+		String fiche2 = fiche;
+		Connection con = null;
+		Statement stmt = null;
+		try {
+			con = ConnectionProvider.getConnection();
+			stmt = con.createStatement();
+			PreparedStatement query = con.prepareStatement("select * from Items\r\n"
+					+ "inner join (select * from ItemsItems where IDItems2 = ?) as y\r\n"
+					+ "on y.IDItems1 = Items.ID and Items.Type = 'Enchainement';;");
+			query.setInt(1, idK);
+			boolean isResultSet = query.execute();
+
+			while (true) {
+				if (isResultSet) {
+					ResultSet listItemsReq = query.getResultSet() ;
+					while(listItemsReq.next()) {
+						int IDench = listItemsReq.getInt("ID");
+						String Nom = listItemsReq.getString("Nom");
+						String Descriptif = listItemsReq.getString("Descriptif");
+						int Niveau = listItemsReq.getInt("Niveau");
+						String fileName = listItemsReq.getString("Filename");
+						String Nombre = listItemsReq.getString("Nombre");
+						String Pratiquant = listItemsReq.getString("Pratiquants");
+						String Dispositif = listItemsReq.getString("Dispositif");
+						List<String> etapes = ((ItemDAOJdbcImpl) ItemDAO).getEtapesFromDB(IDench);
+						List<String> details = ((ItemDAOJdbcImpl) ItemDAO).getDetailsFromDB(IDench);
+						//String Nom, String Descriptif, List<String> Tags, List<String> etapes, int Niveau, String Filename, List<String> details, String Nombre, String Pratiquants, String Dispositif
+						Enchainement it = new Enchainement(Nom, Descriptif, null, etapes, Niveau, fileName, details, Nombre, Pratiquant, Dispositif);
+						String display = it.toString();
+						fiche2 = fiche2 + display + "\n##########\n";	
+					}
+					try {
+						listItemsReq.close();
+					} catch (Exception e) {
+						e.printStackTrace();
+						throw new DALException("Erreur closeResult");
+					}
+				}
+				else {
+					if(query.getUpdateCount() == -1) {
+						break;
+					}
+				}
+				isResultSet = query.getMoreResults();
+			}
+		} catch (SQLException throwables) {
+			throwables.printStackTrace();
+		} finally {
+			try {
+				con.close();
+				stmt.close();
+			} catch (Exception e) {
+				throw new DALException("Erreur fermeture");
+			}
+		}
+
+
+
+
+		return fiche2;
+
+	}
 
 	public static String addType(int idK, String fiche, String type) throws DALException {
 		String fiche2 = fiche;
@@ -468,7 +526,9 @@ public class Controler {
 		try {
 			con = ConnectionProvider.getConnection();
 			stmt = con.createStatement();
-			PreparedStatement query = con.prepareStatement("select * from (select IDITems1 from ( select ID from Items where ID = ? ) as x inner join ItemsItems on ItemsItems.IDItems2 = x.ID ) as y inner join Items on Items.ID = y.IDItems1 and Items.Type = ?;");
+			PreparedStatement query = con.prepareStatement("select * from Items\r\n"
+					+ "inner join (select * from ItemsItems where IDItems2 = ?) as y \r\n"
+					+ "on y.IDItems1 = Items.ID and Items.Type = ?;;");
 			query.setInt(1, idK);
 			query.setString(2, type);
 			boolean isResultSet = query.execute();
@@ -540,87 +600,314 @@ public class Controler {
 		return fiche2;
 	}
 
-	public static String excecuteRequest(String keyword, List<String> details, String typeSelected, String path) throws DALException, FileNotFoundException {
-		// generates a .txt file with the result of the request
-		String typeKeyWord = ((ItemDAOJdbcImpl) ItemDAO).retrieveType(keyword.trim());
-		int idKeyWord = genericRetrieveId(keyword.trim());
-		String type2KeyWord =((ItemDAOJdbcImpl) ItemDAO).retrieveType2(idKeyWord);
+	public static String getStringReq(String nomMainTag, List<String> allTags, List<Item> allItems) {
+		String strReq = "";
+		int numTags = allTags.size() + 1;
+		String constraints = "Nom = '" + nomMainTag + "' " ;
+		// Attention si allTags est vide, faire une autre requête (maybe ?)
+		if (numTags > 1) {
+			for (int i = 0; i < numTags-1; i++) {
+				constraints = constraints + "or Nom = '" + allTags.get(i) + "' " ;
+			}
+		}
+		// Ou jouer avec les ? et on n'a besoin que de la longueur des listes de précisions ?
+		strReq = "select * from Items \r\n"
+				+ "inner join ( select IDItems from (\r\n"
+				+ "select IDItems, count(*) as countItem from \r\n"
+				+ "	(select * from ItemsTags inner join ( select ID from Tags where (" + constraints + ") ) as y on y.ID = ItemsTags.IDTags) as x\r\n"
+				+ "	group by x.IDItems) as y\r\n"
+				+ "	where countItem = " + numTags + "  ) as z\r\n"
+				+ "	on Items.ID = z.IDItems; ";
+
+
+		return strReq;
+	}
+
+	public static List<Item> processTagRequest(Tag mainTag,List<Item> allItems, List<String> AllTags ) throws DALException {
+		// getting all items fitting the tag + constraints
+		List<Item> resList = new ArrayList();
+		int idTag = mainTag.getId();
+		Connection con = null;
+		Statement stmt = null;
+		try {
+			con = ConnectionProvider.getConnection();
+			stmt = con.createStatement();
+			String req = getStringReq(mainTag.getNom(), AllTags, allItems);
+			System.out.println(req);
+			PreparedStatement query = con.prepareStatement(req); 
+			boolean isResultSet = query.execute();
+
+			while (true) {
+				if (isResultSet) {
+					ResultSet listItemsReq = query.getResultSet() ;
+					while(listItemsReq.next()) {	
+						String Type = listItemsReq.getString("Type");
+						if (Type.equals("Enchainement")) {
+							int IDench = listItemsReq.getInt("ID");
+							String Nom = listItemsReq.getString("Nom");
+							System.out.println("Nom de l'enchainement trouvé : " + Nom);
+							String Descriptif = listItemsReq.getString("Descriptif");
+							int Niveau = listItemsReq.getInt("Niveau");
+							String fileName = listItemsReq.getString("Filename");
+							String Nombre = listItemsReq.getString("Nombre");
+							String Pratiquant = listItemsReq.getString("Pratiquants");
+							String Dispositif = listItemsReq.getString("Dispositif");
+							List<String> etapes = ((ItemDAOJdbcImpl) ItemDAO).getEtapesFromDB(IDench);
+							List<String> details2 = ((ItemDAOJdbcImpl) ItemDAO).getDetailsFromDB(IDench);
+							Enchainement it = new Enchainement(Nom, Descriptif, null, etapes, Niveau, fileName, details2, Nombre, Pratiquant, Dispositif);
+							resList.add(it);
+						}
+						else {
+							String Nom = listItemsReq.getString("Nom");
+							String Descriptif = listItemsReq.getString("Descriptif");
+							int Niveau = listItemsReq.getInt("Niveau");
+							String fileName = listItemsReq.getString("Filename");
+							String Nombre = listItemsReq.getString("Nombre");
+							String Pratiquant = listItemsReq.getString("Pratiquants");
+							String Dispositif = listItemsReq.getString("Dispositif");
+
+							Technique it = new Technique( Type, Nom ,Descriptif, null , Niveau, fileName, Nombre, Pratiquant, Dispositif  );
+							resList.add(it);
+						}
+					}
+					try {
+						listItemsReq.close();
+					} catch (Exception e) {
+						e.printStackTrace();
+						throw new DALException("Erreur closeResult");
+					}
+				}
+				else {
+					if(query.getUpdateCount() == -1) {
+						break;
+					}
+				}
+				isResultSet = query.getMoreResults();
+			}
+		} catch (SQLException throwables) {
+			throwables.printStackTrace();
+		} finally {
+			try {
+				con.close();
+				stmt.close();
+			} catch (Exception e) {
+				throw new DALException("Erreur fermeture");
+			}
+		}
+		return resList;
+	}
+
+	public static String processItemRequest(Item mainItem, List<Item> allItems, List<String> AllTags, String fiche ) throws DALException {
+		String fiche2 = fiche;
+		String type2KeyWord = mainItem.getType();
 		System.out.println(type2KeyWord);
+		int idKeyWord = mainItem.getId();
+		System.out.println("Main ID : " + idKeyWord);
+		String keyword = mainItem.getNom();
+
+
+		if (type2KeyWord.equals("Enchainement")) {
+			fiche2 = fiche2 + "#####" + keyword + "######\n\n";
+			fiche2 = addType(idKeyWord, fiche2, "Enchainement");
+		}
+
+		if (AllTags.contains("Echauffement") ) {
+			fiche2 = "##### Echauffements ######\n\n" + fiche2;
+			fiche2 = addType(idKeyWord, fiche2, "Echauffement");
+		}
+
+		if (type2KeyWord.equals("Technique")) {
+			fiche2 = fiche2 + "##### Technique ######\n\n";
+			fiche2 = addType(idKeyWord, fiche2, "Technique");
+		}
+
+		if (AllTags.contains("Educatif")) {
+			fiche2 =  fiche2 + "##### Educatif ######\n\n";
+			fiche2 = addType(idKeyWord, fiche2, "Educatif");
+		}
+		if (AllTags.contains("Technique") && !type2KeyWord.equals("Technique")) {
+			fiche2 = fiche2 + "##### Technique ######\n\n";
+			fiche2 = addType(idKeyWord, fiche2, "Technique");
+		}
+
+		if (AllTags.contains("Enchainement") && !type2KeyWord.equals("Enchainement")) {
+			// To complete
+			fiche2 = fiche2 + "##### Enchainement ######\n\n";
+			fiche2 = fetchEnchForItem(idKeyWord, fiche2);
+		}
+		if (AllTags.contains("Etirement")) {
+			fiche2 = fiche2 + "##### Etirement ######\n\n";
+			fiche2 = addType(idKeyWord, fiche2, "Etirement");
+		}
+
+
+		return fiche2;
+	}
+
+	public static String excecuteRequestManager(String keyword, List<String> details, String path) throws DALException, FileNotFoundException {
 		String fiche = "";
+		// Type du mot-clef : Item ou Tag
+		String typeKeyWord = ((ItemDAOJdbcImpl) ItemDAO).retrieveType(keyword.trim());
+		// ID du mot clef
+		int idKeyWord = genericRetrieveId(keyword.trim());
+		Item mainItem = null;
+		Tag mainTag = null;
+		String exportName = "";
 
-		if ( typeSelected.equals("Choisir un type") ){
-			fiche = "Merci de choisir un type pour la requête";
-			return fiche;
+		// Si Item, on récupère son Type plus particulier
+		if (typeKeyWord.equals("Item")) {
+			mainItem = ((ItemDAOJdbcImpl) ItemDAO).selectById(idKeyWord);
 		}
-		
-		String typeKeyWord2 = type2KeyWord;
-		if (typeKeyWord2.equals("Echauffement")) {
-			typeKeyWord2 = "Technique";
-		}
-		if (typeKeyWord2.equals("Etirement")) {
-			typeKeyWord2 = "Technique";
-		}
-		if (typeKeyWord2.equals("Educatif")) {
-			typeKeyWord2 = "Technique";
+		if (typeKeyWord.equals("Tag")) {
+			mainTag = ((TagDAOJdbcImpl) TagDAO).selectById(idKeyWord);
 		}
 
-		if (   !typeSelected.equals(typeKeyWord2)  ){
-			fiche = "Type sélectionné incorrect";
-			return fiche;
-		}
-		
-		if (idKeyWord == 0) {
-			System.out.println("KeyWord not found");
-		}
-		else {		
-			if (typeKeyWord.equals("Item")) {	
-				
-				if (type2KeyWord.equals("Enchainement")) {
-					fiche = fiche + "#####" + keyword + "######\n\n";
-					fiche = addType(idKeyWord, fiche, "Enchainement");
-				}
-							
-				if (details.contains("Echauffement") ) {
-					fiche = "##### Echauffements ######\n\n" + fiche;
-					fiche = addType(idKeyWord, fiche, "Echauffement");
-				}
-				
-				if (type2KeyWord.equals("Technique")) {
-					fiche = fiche + "##### Technique ######\n\n";
-					fiche = addType(idKeyWord, fiche, "Technique");
-				}
-				
-				if (details.contains("Educatif")) {
-					fiche =  fiche + "##### Educatif ######\n\n";
-					fiche = addType(idKeyWord, fiche, "Educatif");
-				}
-				if (details.contains("Technique") && !type2KeyWord.equals("Technique")) {
-					fiche = fiche + "##### Technique ######\n\n";
-					fiche = addType(idKeyWord, fiche, "Technique");
-				}
-				
-				if (details.contains("Enchainement")) {
-					
-				}
-				if (details.contains("Etirement")) {
-					fiche = fiche + "##### Etirement ######\n\n";
-					fiche = addType(idKeyWord, fiche, "Etirement");
-				}
 
+		// Liste des Items qu'il faudra afficher
+		List<Item> itemsToDisplay = new ArrayList();
+
+		// Pour découper la liste des détails 
+		List<String> allTagsString = new ArrayList();
+		List<Item> allItems = new ArrayList();
+
+		for (String str_temp : details) {
+			String cur_type = ((ItemDAOJdbcImpl) ItemDAO).retrieveType(str_temp.trim());
+			if (cur_type.equals("Item")) {
+				Item it = ((ItemDAOJdbcImpl) ItemDAO).selectByNom(str_temp);
+				allItems.add(it);
 			}
-			// Si le keyword est un tag
-			else if (typeKeyWord.equals("Tag")) {
-
+			else {
+				allTagsString.add(str_temp);
 			}
 		}
-		System.out.println(fiche);
+
+		if (typeKeyWord.equals("Item")) {
+			// Si le keyWord est un item
+			for (String disp : allTagsString ) {
+				System.out.println("all tags from details : " + disp + "\n");
+			}
+			exportName = mainItem.getNom();
+			fiche = processItemRequest(mainItem, allItems, allTagsString, fiche); // On regroupe finalement requetes et affichage
+		}
+		else if (typeKeyWord.equals("Tag")){
+			// Si le keyWord est un Tag
+			exportName = mainTag.getNom();
+			List<Item> resList = processTagRequest(mainTag, allItems, allTagsString);
+			for (Item it : resList) {
+				fiche = fiche + "##########\n" + it + "\n";
+			}
+		}
+		else {
+			fiche = "Incorrect request";
+			return fiche;
+		}
 
 		// Export 
-		try (PrintWriter out = new PrintWriter(path + "requete.txt")) {
+
+		try (PrintWriter out = new PrintWriter(path + exportName + ".txt")) {
 			out.println(fiche);
 		}
+
 		return fiche;
 	}
+
+	//	public static String excecuteRequest(String keyword, List<String> details, String typeSelected, String path) throws DALException, FileNotFoundException {
+	//		// generates a .txt file with the result of the request
+	//		String typeKeyWord = ((ItemDAOJdbcImpl) ItemDAO).retrieveType(keyword.trim());
+	//		int idKeyWord = genericRetrieveId(keyword.trim());
+	//		String type2KeyWord =((ItemDAOJdbcImpl) ItemDAO).retrieveType2(idKeyWord);
+	//		System.out.println(type2KeyWord);
+	//		String fiche = "";
+	//
+	//		if ( typeSelected.equals("Choisir un type") ){
+	//			fiche = "Merci de choisir un type pour la requête";
+	//			return fiche;
+	//		}
+	//		
+	//		String typeKeyWord2 = type2KeyWord;
+	//		if (typeKeyWord2.equals("Echauffement")) {
+	//			typeKeyWord2 = "Technique";
+	//		}
+	//		if (typeKeyWord2.equals("Etirement")) {
+	//			typeKeyWord2 = "Technique";
+	//		}
+	//		if (typeKeyWord2.equals("Educatif")) {
+	//			typeKeyWord2 = "Technique";
+	//		}
+	//
+	//		if (   !typeSelected.equals(typeKeyWord2)  ){
+	//			fiche = "Type sélectionné incorrect";
+	//			return fiche;
+	//		}
+	//		
+	//		if (idKeyWord == 0) {
+	//			System.out.println("KeyWord not found");
+	//		}
+	//		else {		
+	//			if (typeKeyWord.equals("Item")) {	
+	//				
+	//				if (type2KeyWord.equals("Enchainement")) {
+	//					fiche = fiche + "#####" + keyword + "######\n\n";
+	//					fiche = addType(idKeyWord, fiche, "Enchainement");
+	//				}
+	//							
+	//				if (details.contains("Echauffement") ) {
+	//					fiche = "##### Echauffements ######\n\n" + fiche;
+	//					fiche = addType(idKeyWord, fiche, "Echauffement");
+	//				}
+	//				
+	//				if (type2KeyWord.equals("Technique")) {
+	//					fiche = fiche + "##### Technique ######\n\n";
+	//					fiche = addType(idKeyWord, fiche, "Technique");
+	//				}
+	//				
+	//				if (details.contains("Educatif")) {
+	//					fiche =  fiche + "##### Educatif ######\n\n";
+	//					fiche = addType(idKeyWord, fiche, "Educatif");
+	//				}
+	//				if (details.contains("Technique") && !type2KeyWord.equals("Technique")) {
+	//					fiche = fiche + "##### Technique ######\n\n";
+	//					fiche = addType(idKeyWord, fiche, "Technique");
+	//				}
+	//				
+	//				if (details.contains("Enchainement") && !type2KeyWord.equals("Enchainement")) {
+	//					// To complete
+	//					fiche = fiche + "##### Enchainement ######\n\n";
+	//					fiche = fetchEnchForItem(idKeyWord, fiche);
+	//				}
+	//				if (details.contains("Etirement")) {
+	//					fiche = fiche + "##### Etirement ######\n\n";
+	//					fiche = addType(idKeyWord, fiche, "Etirement");
+	//				}
+	//
+	//			}
+	//			// Si le keyword est un tag
+	//			else if (typeKeyWord.equals("Tag")) {
+	//				// Get Items with the tag + the types in details
+	//				
+	//				
+	//				// 
+	//				
+	//				
+	//			}
+	//		}
+	//		System.out.println(fiche);
+	//
+	//		// Export 
+	//				String exportName = mainItem.getNom();
+	//	try (PrintWriter out = new PrintWriter(path + exportName + ".txt")) {
+	//		out.println(fiche);
+	//		}
+	//	
+	//	return fiche;
+	//}
+
+
+
+	//			out.println(fiche);
+	//		}
+	//		return fiche;
+	//	}
 
 	public static void processDB() throws DALException {
 		// generate a table with all possible keywords and Tagwords 

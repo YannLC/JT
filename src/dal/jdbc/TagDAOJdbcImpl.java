@@ -7,8 +7,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 
+import bo.Enchainement;
 import bo.Item;
 import bo.Tag;
+import bo.Technique;
 import dal.ConnectionProvider;
 import dal.DAO;
 import dal.Factory;
@@ -49,7 +51,39 @@ public class TagDAOJdbcImpl  implements DAO<Tag> {
 		}
 	}
 
-	public Tag selectById(int i) {return null;}
+	public Tag selectById(int i) throws DALException {Connection con = null;
+	Statement stmt = null;
+	Tag tag = null ;
+	
+	try {
+		con = ConnectionProvider.getConnection();
+		stmt = con.createStatement();
+		PreparedStatement query = con.prepareStatement("select * from Tags where ID = ?");
+		query.setInt(1, i);
+		ResultSet listItemsReq = query.executeQuery();
+		if (listItemsReq.next()) {
+			tag = new Tag(listItemsReq.getString("Nom"));
+			tag.setId(i);		
+		}
+		try {
+			listItemsReq.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new DALException("Erreur closeResult");
+		}
+	} catch (SQLException throwables) {
+	} finally {
+		try {
+			con.close();
+			stmt.close();
+		} catch (Exception e) {
+			throw new DALException("Erreur fermeture");
+		}
+	}
+
+	//System.out.println("Retrieved Id for item " + Nom + " : " + idItem);	
+	
+	return tag;}
 
 	public void delete(int i) {}
 
@@ -125,8 +159,43 @@ public class TagDAOJdbcImpl  implements DAO<Tag> {
 		return checked;
 	}
 	
-	public void sqlTagRequest(int IDitem, int IDTag, String Type) {
-				
+	public Tag selectByNom(String Nom) throws DALException {
+		Connection con = null;
+		Statement stmt = null;
+		Tag tag = null ;
+		
+		try {
+			con = ConnectionProvider.getConnection();
+			stmt = con.createStatement();
+			PreparedStatement query = con.prepareStatement("select * from Tags where Nom = ?");
+			query.setString(1, Nom);
+			ResultSet listItemsReq = query.executeQuery();
+			if (listItemsReq.next()) {
+				int ID = listItemsReq.getInt("ID");
+				tag = new Tag(Nom);
+				tag.setId(ID);		
+			}
+			try {
+				listItemsReq.close();
+			} catch (Exception e) {
+				e.printStackTrace();
+				throw new DALException("Erreur closeResult");
+			}
+		} catch (SQLException throwables) {
+			throwables.printStackTrace();
+		} finally {
+			try {
+				con.close();
+				stmt.close();
+			} catch (Exception e) {
+				throw new DALException("Erreur fermeture");
+			}
+		}
+
+		//System.out.println("Retrieved Id for item " + Nom + " : " + idItem);	
+		
+		return tag;
 	}
+	
 	
 }
