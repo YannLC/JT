@@ -73,7 +73,7 @@ public class Gui extends JFrame implements WindowListener,ActionListener {
 		DAO<Item> ItemDAO;
 		ItemDAO = Factory.getItemDAO();
 		this.PotentialString = ((ItemDAOJdbcImpl) ItemDAO).getAllNames();
-		this.PotentialString.add("-");
+		//this.PotentialString.add("-");
 		this.PotentialString.sort(Comparator.comparing( String::toString ));
 		combox2 = new Java2sAutoComboBox(this.PotentialString);
 
