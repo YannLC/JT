@@ -902,4 +902,58 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 		return details;	
 	}
 
+	public List<Integer> getIDEnchSpec(List<String> nomEnchSpec) throws DALException {
+		List<Integer> results = new ArrayList<Integer>();
+		Connection con = null;
+		Statement stmt = null;
+		ResultSet listEnchreq = null ;
+		
+		String constraints = "Nom = '" + nomEnchSpec.get(0) + "'";
+		
+		for (int i = 1 ; i < nomEnchSpec.size(); i++ ) {
+			constraints = constraints + "or Nom = '" + nomEnchSpec.get(i) + "'";
+		}
+		
+		try {
+			con = ConnectionProvider.getConnection();
+			stmt = con.createStatement();
+			PreparedStatement query = con.prepareStatement("select ID FROM Tags where " + constraints + ";");
+			boolean isResultSet = query.execute();
+
+			while (true) {
+				if (isResultSet) {
+					listEnchreq = query.getResultSet() ;
+					while(listEnchreq.next()) {
+						results.add(listEnchreq.getInt("ID"));
+					}
+					try {
+						listEnchreq.close();
+					} catch (Exception e) {
+						e.printStackTrace();
+						throw new DALException("Erreur closeResult");
+					}
+				}
+				else {
+					if(query.getUpdateCount() == -1) {
+						break;
+					}
+				}
+				isResultSet = query.getMoreResults();
+			}
+		} catch (SQLException throwables) {
+			throwables.printStackTrace();
+		} finally {
+			try {
+				con.close();
+				stmt.close();
+			} catch (Exception e) {
+				throw new DALException("Erreur fermeture");
+			}
+		}
+
+		
+		return results;
+	}
+	
+	
 }
