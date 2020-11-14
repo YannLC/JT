@@ -13,7 +13,7 @@ public class Enchainement extends Item {
 	}
 
 	public String toString() {
-		String output = "Détail de l'enchainement : '" + this.Descriptif + "'\nNiveau : " + this.Niveau + "\n";
+		String output = "Nom : " + this.getNom() + "\nDétail de l'enchainement : '" + this.Descriptif + "'\nNiveau : " + this.Niveau + "\n";
 		int i = 1; 
 		int l_detail = this.details.size();
 		for (String temp : this.etapes) {

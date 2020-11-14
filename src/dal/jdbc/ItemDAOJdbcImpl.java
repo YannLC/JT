@@ -107,7 +107,6 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 					stmt.setInt(1, retrieveId(item.getNom()));
 					stmt.setString(2, item.getEtapesString(item.getEtapes()));
 					stmt.setString(3, item.getEtapesString(item.getDetails()));
-					//System.out.println(item.getEtapesString(item.getEtapes()));
 				}
 				else {
 					stmt = con.prepareStatement("insert into Enchainements (ID, Etapes) values (?,?)");
@@ -150,18 +149,31 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 
 			List<String> Tags = item.getTags();
 			for (String temp : Tags) {
-				Tag temp_tag = new Tag(temp);
-				int idtag = retrieveId(temp_tag.getNom());
+				stmt.setInt(1, idItem);
+				//Tag temp_tag = new Tag(temp);
+				int idtag = retrieveId(temp); // au lieu de : int idtag = retrieveId(temp_tag.getNom());
 				stmt.setInt(2,idtag);
 
 				if (idtag != -1 && checkInsertCouple(idItem, idtag, "ItemsItems") ) {
 					int rows = stmt.executeUpdate();
 					if (rows != 1) {
 						throw new DALException("Erreur insert");
+					}
+				}
+
+				// Also making ItemsItems table symmetric (good idea ?)
+				if (idtag != -1 && checkInsertCouple(idtag, idItem, "ItemsItems") ) {
+					stmt.setInt(1,idtag);
+					stmt.setInt(2,idItem);
+					int rows = stmt.executeUpdate();
+					if (rows != 1) {
+						throw new DALException("Erreur insert");
 					} 
 				}
+
 			}
 			// Also inserting Items pointing to himself (good idea ?)
+			stmt.setInt(2,idItem);
 			stmt.setInt(2,idItem);
 			if (checkInsertCouple(idItem, idItem, "ItemsItems") ) {
 				int rows = stmt.executeUpdate();
@@ -739,7 +751,7 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 		return listEnch;
 
 	}
-	
+
 	public List<String> getAllNamesTags() throws DALException {
 		ResultSet listEnchreq = null ;
 		List<String> listEnch = new ArrayList<>();
@@ -907,13 +919,13 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 		Connection con = null;
 		Statement stmt = null;
 		ResultSet listEnchreq = null ;
-		
+
 		String constraints = "Nom = '" + nomEnchSpec.get(0) + "'";
-		
+
 		for (int i = 1 ; i < nomEnchSpec.size(); i++ ) {
 			constraints = constraints + "or Nom = '" + nomEnchSpec.get(i) + "'";
 		}
-		
+
 		try {
 			con = ConnectionProvider.getConnection();
 			stmt = con.createStatement();
@@ -951,9 +963,9 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 			}
 		}
 
-		
+
 		return results;
 	}
-	
-	
+
+
 }

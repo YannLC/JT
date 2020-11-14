@@ -1,6 +1,9 @@
 package bll;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.FileHandler;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -28,6 +31,9 @@ import dal.Factory;
 public class Controler {
 	private static DAO<Item> ItemDAO;
 	private static DAO<Tag> TagDAO;
+	static Logger logger = Logger.getLogger("log");  
+	static FileHandler fh;
+
 
 	public static void main(String[] args) throws SQLException, DALException, IOException {
 
@@ -40,10 +46,21 @@ public class Controler {
 			System.exit(1);
 		}
 
+		// Setting up logger 
+		fh = new FileHandler("D:\\Documents\\TKD\\Cahier technique\\Database\\InitTables\\log.txt");  
+		logger.addHandler(fh);
+		SimpleFormatter formatter = new SimpleFormatter();  
+		fh.setFormatter(formatter);  
 
+		// Creating objects to access the DAL
 		ItemDAO = Factory.getItemDAO();
 		TagDAO =  Factory.getTagDAO();
 
+		
+		///////////////////////////////////////////////////////////////////////////////////////////////
+		///////////////////////// Processing the files ///////////////////////////////////////////////
+		/////////////////////////////////////////////////////////////////////////////////////////////
+		
 		////// Resetting the tables
 		createTables();
 
@@ -58,9 +75,7 @@ public class Controler {
 		readAllFilesItems(stemItems);
 		processDB();
 
-		// Testing a request
-
-		//String stemSaves = "D:\\Documents\\TKD\\Cahier technique\\Database\\Fiches\\";
+		 
 
 		// Test of GUI
 
@@ -120,7 +135,7 @@ public class Controler {
 						if (firstWord.equals("Nom")) {
 							Nom = line.split(":")[1];
 							Nom = Nom.trim();
-							System.out.println(Nom);
+							//System.out.println(Nom);
 							((ItemDAOJdbcImpl) ItemDAO).insertMiniItem(Nom, "Enchainement");
 							newItem = false;
 						}
@@ -129,7 +144,7 @@ public class Controler {
 							// System.out.println("xxxxxxxxxxx Feedback : " + st);
 							Nom = "Enchainement-" + iEnch;
 							line = "Nom : " + Nom + "\n" + line;
-							System.out.println(Nom);
+							//System.out.println(Nom);
 							modif = true;
 							((ItemDAOJdbcImpl) ItemDAO).insertMiniItem(Nom, "Enchainement");
 							newItem = false;
@@ -151,7 +166,7 @@ public class Controler {
 						if (firstWord.equals("Nom")) {
 							Nom = line.split(":")[1];
 							Nom = Nom.trim();
-							System.out.println(Nom);
+							//System.out.println(Nom);
 							((ItemDAOJdbcImpl) ItemDAO).insertMiniItem(Nom, "Etirement");
 							newItem = false;
 						}
@@ -160,7 +175,7 @@ public class Controler {
 							// System.out.println("xxxxxxxxxxx Feedback : " + st);
 							Nom = "Etirement-" + iEnch;
 							line = "Nom : " + Nom + "\n" + line;
-							System.out.println(Nom);
+							//System.out.println(Nom);
 							modif = true;
 							((ItemDAOJdbcImpl) ItemDAO).insertMiniItem(Nom, "Etirement");
 							newItem = false;
@@ -180,7 +195,7 @@ public class Controler {
 						if (firstWord.equals("Nom")) {
 							Nom = line.split(":")[1];
 							Nom = Nom.trim();
-							System.out.println(Nom);
+							//System.out.println(Nom);
 							((ItemDAOJdbcImpl) ItemDAO).insertMiniItem(Nom, "Educatif");
 							newItem = false;
 						}
@@ -189,7 +204,7 @@ public class Controler {
 							// System.out.println("xxxxxxxxxxx Feedback : " + st);
 							Nom = "Educatif-" + iEnch;
 							line = "Nom : " + Nom + "\n" + line;
-							System.out.println(Nom);
+							//System.out.println(Nom);
 							modif = true;
 							((ItemDAOJdbcImpl) ItemDAO).insertMiniItem(Nom, "Educatif");
 							newItem = false;
@@ -209,7 +224,7 @@ public class Controler {
 						if (firstWord.equals("Nom")) {
 							Nom = line.split(":")[1];
 							Nom = Nom.trim();
-							System.out.println(Nom);
+							//System.out.println(Nom);
 							((ItemDAOJdbcImpl) ItemDAO).insertMiniItem(Nom, "Echauffement");
 							newItem = false;
 						}
@@ -218,7 +233,7 @@ public class Controler {
 							// System.out.println("xxxxxxxxxxx Feedback : " + st);
 							Nom = "Echauffement-" + iEnch;
 							line = "Nom : " + Nom + "\n" + line;
-							System.out.println(Nom);
+							//System.out.println(Nom);
 							modif = true;
 							((ItemDAOJdbcImpl) ItemDAO).insertMiniItem(Nom, "Echauffement");
 							newItem = false;
@@ -233,7 +248,7 @@ public class Controler {
 				if (firstWord.equals("Nom") && newItem ) {
 					Nom = st.split(":")[1];
 					Nom = Nom.trim();
-					System.out.println(Nom);
+					//System.out.println(Nom);
 					((ItemDAOJdbcImpl) ItemDAO).insertMiniItem(Nom, curType);
 				}
 			}
@@ -351,6 +366,7 @@ public class Controler {
 					Tags.add(temp);
 					if (!existingTag(temp)) {
 						System.out.println("New tag to be added : " + temp);
+						logger.info("New tag to be added : " + temp); 
 					}
 				}
 			}
@@ -420,11 +436,8 @@ public class Controler {
 
 		for (String pathname : pathnames) {
 			listIT = readFileItem(folder, pathname);
-			System.out.println("############################## \n ###################### \n Starting to scan the list of Items \n ###########");
+			System.out.println("############################## \n ###################### \n Starting to scan the list of Items in file : " + pathname + "\n ###########");
 			for (Item it : listIT) {
-				//				if (it.getNom().equals("Poomsae 1")) {
-				//					System.out.println(it);
-				//				}
 				if (it instanceof Technique) {
 					System.out.println("Technique read ");
 				}
@@ -432,7 +445,6 @@ public class Controler {
 					System.out.println("Enchainement read");
 				}
 			}
-			//System.out.println(pathname);
 		}
 	}
 
@@ -564,7 +576,7 @@ public class Controler {
 					+ "	on  Items.ID = w.ID1 where w.ID1 IS NULL and Items.Type = 'Enchainement') as x2\r\n"
 					+ "	inner join (select ID as ID2 from Items \r\n"
 					+ "inner join ( select IDItems1 from ItemsItems where IDItems2 = ?) as w2 \r\n"
-					+ "on w2.IDItems1 = Items.ID ) as w3 on  w3.ID2 = x2.ID; ");
+					+ "on w2.IDItems1 = Items.ID ) as w3 on  w3.ID2 = x2.ID order by Niveau, Nom ASC; ");
 
 
 			query.setInt(1, idK);
@@ -650,7 +662,7 @@ public class Controler {
 					+ "	inner join (select ID from Tags where " + constraints  + ") as x2 \r\n"
 					+ "	on x2.ID = ItemsTags.IDTags \r\n"
 					+ "	) as z \r\n"
-					+ "on w.ID = z.IDItems;");
+					+ "on w.ID = z.IDItems order by Niveau, Nom ASC;");
 
 			query.setInt(1, idK);
 
@@ -718,7 +730,7 @@ public class Controler {
 			stmt = con.createStatement();
 			PreparedStatement query = con.prepareStatement("select * from Items\r\n"
 					+ "inner join (select * from ItemsItems where IDItems2 = ?) as y \r\n"
-					+ "on y.IDItems1 = Items.ID and Items.Type = ?;");
+					+ "on y.IDItems1 = Items.ID and Items.Type = ? order by Niveau, Nom ASC;");
 			query.setInt(1, idK);
 			query.setString(2, type);
 			boolean isResultSet = query.execute();
@@ -727,8 +739,6 @@ public class Controler {
 				if (isResultSet) {
 					ResultSet listItemsReq = query.getResultSet() ;
 					while(listItemsReq.next()) {
-						//	((ItemDAOJdbcImpl) ItemDAO).InsertItemsTagsList( listItemsReq.getInt("ID") , listItemsReq.getString("Nom"), "Item");
-						//System.out.println(listItemsReq.getString("Nom"));
 						if (!type.equals("Enchainement")) {
 							// type, Nom, Descriptif,Tags, Niveau, Filename, Nombre, Public, Dispositif
 							String Nom = listItemsReq.getString("Nom");
@@ -740,7 +750,6 @@ public class Controler {
 							String Dispositif = listItemsReq.getString("Dispositif");
 							Technique it = new Technique( type, Nom ,Descriptif, null , Niveau, fileName, Nombre, Pratiquant, Dispositif  );
 							String display = it.toStringMini();
-							//display = display.replace(".", ".\n");
 							fiche2 = fiche2 + display + "\n##########\n";						
 						}
 						if (type.equals("Enchainement")) {
@@ -828,11 +837,11 @@ public class Controler {
 					+ "select * from (\r\n"
 					+ "select ID, count(*) as countItems2 from (" + strReqStem + ") as w\r\n"
 					+ "	inner join (select IDItems1 from ItemsItems where "+ constraints2 +") as w2\r\n"
-					+ "	on w2.IDItems1 = w.ID group by ID) as w3 where countItems2 = "+ numItems + ") as w3 on w3.ID = Items.ID;";
+					+ "	on w2.IDItems1 = w.ID group by ID) as w3 where countItems2 = "+ numItems + ") as w3 on w3.ID = Items.ID order by Niveau, Nom ASC;";
 			strReq = strReq2;
 		}
 		else {
-			strReq = strReqStem + ";";
+			strReq = strReqStem + " order by Niveau, Nom ASC;";
 		}
 
 		allres.add(req);
