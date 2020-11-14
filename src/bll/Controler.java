@@ -953,8 +953,8 @@ public class Controler {
 
 		List<String> nomEnchSpec = new ArrayList();
 		nomEnchSpec.add("Poomsae");
-		nomEnchSpec.add("Pas-combats");
-		nomEnchSpec.add("Ho Shin Sul");
+		nomEnchSpec.add("Gyeorugi");
+		nomEnchSpec.add("Hohinsul");
 
 		String fiche2 = fiche;
 		String type2KeyWord = mainItem.getType();
@@ -969,8 +969,8 @@ public class Controler {
 		b.add("Educatif");
 		b.add("Etirement");
 		b.add("Poomsae");
-		b.add("Pas-combats");
-		b.add("Ho Shin Sul");
+		b.add("Gyeorugi");
+		b.add("Hoshinsul");
 
 		List<String> c = new ArrayList<>(AllTags);
 		c.removeAll(b); // Getting tags outside the authorized ones for items
@@ -1020,7 +1020,7 @@ public class Controler {
 			fiche2 = fetchEnchForItem(idKeyWord, fiche2, IDEnchSpec);
 		}
 
-		if ((AllTags.contains("Poomsae") || AllTags.contains("Pas-Combats") || AllTags.contains("Ho Shin Sul") )&& !type2KeyWord.equals("Enchainement")) {
+		if ((AllTags.contains("Poomsae") || AllTags.contains("Gyeorugi") || AllTags.contains("Hoshinsul") )&& !type2KeyWord.equals("Enchainement")) {
 			// To complete
 			fiche2 = fiche2 + "##### Enchainements spéciaux ######\n\n";
 
@@ -1028,11 +1028,11 @@ public class Controler {
 			if (AllTags.contains("Poomsae")) {
 				AllTagsToInclude.add("Poomsae");
 			}
-			if (AllTags.contains("Pas-Combats")) {
-				AllTagsToInclude.add("Pas-Combats");
+			if (AllTags.contains("Gyeorugi")) {
+				AllTagsToInclude.add("Gyeorugi");
 			}
-			if (AllTags.contains("Ho Shin Sul")) {
-				AllTagsToInclude.add("Ho Shin Sul");
+			if (AllTags.contains("Hoshinsul")) {
+				AllTagsToInclude.add("Hoshinsul");
 			}
 
 			fiche2 = fetchEnchForItemWithTags(idKeyWord, fiche2, AllTagsToInclude);
