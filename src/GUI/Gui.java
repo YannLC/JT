@@ -6,6 +6,8 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowEvent;
@@ -13,7 +15,9 @@ import java.awt.event.WindowListener;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import bll.Controler;
 import bo.Item;
@@ -39,16 +43,18 @@ public class Gui extends JFrame implements WindowListener,ActionListener {
 	Java2sAutoComboBox precision3;
 
 	JTextArea ta = new JTextArea();
-	JCheckBox checkbox_Ech = new JCheckBox("Echauffement");
+	JCheckBox checkbox_Ech = new JCheckBox("Echauffements");
 	JCheckBox checkbox_Ed = new JCheckBox("Educatifs");
 	JCheckBox checkbox_Tech = new JCheckBox("Techniques");
-	JCheckBox checkbox_Ench = new JCheckBox("Enchainement");
-	JCheckBox checkbox_Et = new JCheckBox("Etirement");
+	JCheckBox checkbox_Ench = new JCheckBox("Enchainements");
+	JCheckBox checkbox_Et = new JCheckBox("Etirements");
 
-	List<String> PotentialString = new ArrayList();
+	static List<String> PotentialString = new ArrayList();
 	String typeSelected = "";
 	String keyWord = "";
 
+	JLabel label5 = new JLabel();
+	
 	public Gui() throws DALException{
 		//Creating the Frame
 		JFrame frame = new JFrame("Request Frame");
@@ -73,26 +79,17 @@ public class Gui extends JFrame implements WindowListener,ActionListener {
 		DAO<Item> ItemDAO;
 		ItemDAO = Factory.getItemDAO();
 		this.PotentialString = ((ItemDAOJdbcImpl) ItemDAO).getAllNames();
-		//this.PotentialString.add("-");
-		this.PotentialString.sort(Comparator.comparing( String::toString ));
+		PotentialString.add("");
+		Set<String> set = new HashSet<>(PotentialString);
+		PotentialString.clear();
+		PotentialString.addAll(set);
+		this.PotentialString.sort(Comparator.comparing( String::toString ));	
+
 		combox2 = new Java2sAutoComboBox(this.PotentialString);
 
-		combox2.addActionListener (new ActionListener () {
-		    public void actionPerformed(ActionEvent e) {
-		    	
-		    	// Getting the current keyword
-		    	String keyWord_temp = PotentialString.get(combox2.getSelectedIndex());
-		    	try {
-		    		// Getting the type of the current keyword
-					String typeKeyWord = ((ItemDAOJdbcImpl) ItemDAO).retrieveType(keyWord_temp.trim());
-				} catch (DALException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
-				}
-		    	
-		    }
-		});
-		
+		precision1 = new Java2sAutoComboBox(this.PotentialString);
+		precision2 = new Java2sAutoComboBox(this.PotentialString);
+		precision3 = new Java2sAutoComboBox(this.PotentialString);
 		
 		//panel.add(typeList);
 		panel.add(label); // Components Added using Flow Layout
@@ -115,10 +112,7 @@ public class Gui extends JFrame implements WindowListener,ActionListener {
 		JPanel panel3 = new JPanel(); // the panel is not visible in output
 		JLabel label3 = new JLabel("Choisir les précisions : ");
 
-		precision1 = new Java2sAutoComboBox(this.PotentialString);
-		precision1.setPreferredSize( new Dimension( 50, 24 ) );
-		precision2 = new Java2sAutoComboBox(this.PotentialString);
-		precision3 = new Java2sAutoComboBox(this.PotentialString);
+
 
 		JLabel labelp1 = new JLabel("Précision 1 : ");
 		labelp1.setHorizontalAlignment(JTextField.CENTER);
@@ -134,13 +128,20 @@ public class Gui extends JFrame implements WindowListener,ActionListener {
 		panel3.add(precision3);
 
 		panel3.setLayout(new GridLayout(3,2));
-
+		
+		JPanel panel4 = new JPanel(); // the panel is not visible in output
+		JLabel label4 = new JLabel(" Requête en cours :  ");
+		label5.setPreferredSize(new Dimension(550, 50));
+		panel4.setLayout(new GridLayout(1,2));
+		panel4.add(label5);
+		panel4.setPreferredSize(new Dimension(600, 50));
 
 		bigpanel.setLayout(new BoxLayout(bigpanel, BoxLayout.Y_AXIS));
 		bigpanel.setBorder(BorderFactory.createEmptyBorder(0, 10 , 0, 20));
 		bigpanel.add(panel);
 		bigpanel.add(panel2);
 		bigpanel.add(panel3);
+		bigpanel.add(panel4);
 
 
 
@@ -162,9 +163,14 @@ public class Gui extends JFrame implements WindowListener,ActionListener {
 		frame.setVisible(true);    
 	}
 
+
+
 	@Override
 	public void actionPerformed(ActionEvent evt) {
 		Object source = evt.getSource();
+		DAO<Item> ItemDAO;
+		ItemDAO = Factory.getItemDAO();
+			
 
 		if (source == reset) {
 			combox2.setSelectedIndex(0);
@@ -186,8 +192,6 @@ public class Gui extends JFrame implements WindowListener,ActionListener {
 
 		if (source == send) {
 			this.keyWord = this.PotentialString.get(combox2.getSelectedIndex());
-			DAO<Item> ItemDAO;
-			ItemDAO = Factory.getItemDAO();
 			String typeKeyWord = "";
 			try {
 				typeKeyWord = ((ItemDAOJdbcImpl) ItemDAO).retrieveType(this.keyWord.trim());
@@ -231,7 +235,7 @@ public class Gui extends JFrame implements WindowListener,ActionListener {
 			if (checkbox_Ench.isSelected()) {
 				Details.add("Enchainement");
 			}
-			
+
 			if (!(precision1.getSelectedIndex() == 0)) {
 				Details.add(this.PotentialString.get(precision1.getSelectedIndex()));
 			}
@@ -243,8 +247,12 @@ public class Gui extends JFrame implements WindowListener,ActionListener {
 			}
 			try {
 				//String res = cont.excecuteRequest(keyWord, Details, typeSelected, stemSaves);
-				String res = cont.excecuteRequestManager(keyWord, Details, stemSaves);
+				List<String> allres = new ArrayList();
+				allres = cont.excecuteRequestManager(keyWord, Details, stemSaves);
+				String res = allres.get(1);
+				String req = allres.get(0);
 				this.displayResults(res);
+				this.displayRequest(req);
 			} catch (FileNotFoundException | DALException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -299,6 +307,10 @@ public class Gui extends JFrame implements WindowListener,ActionListener {
 
 	public void displayResults(String s) {
 		ta.setText(s);
+	}
+	
+	public void displayRequest(String s2) {
+		label5.setText(s2);
 	}
 
 	public String getKeyword() {

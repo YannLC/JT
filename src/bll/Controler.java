@@ -1,11 +1,14 @@
 package bll;
 import java.util.List;
+import java.util.Set;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 
@@ -46,7 +49,7 @@ public class Controler {
 		List<Tag> listTag = readFileTag(fileTags);
 
 		//// Reading item files and filling the DB
-		String stemItems = "D:\\Documents\\TKD\\Cahier technique\\Database\\Exercices\\";
+		String stemItems = "D:\\Documents\\TKD\\Cahier technique\\Database\\Exercices_backup\\";
 
 		readAllItems(stemItems);
 		readAllFilesItems(stemItems);
@@ -518,7 +521,92 @@ public class Controler {
 		return fiche2;
 
 	}
+	
+	public static String fetchEnchForItemWithTags(int idK, String fiche, List<String> allTagsToInclude) throws DALException {
+		String fiche2 = fiche;
+		Connection con = null;
+		Statement stmt = null;
+		
+		String constraints = "Nom = '" + allTagsToInclude.get(0) + "'";
+		int lTags = allTagsToInclude.size();
+		for (int i = 1; i <allTagsToInclude.size() ; i++) {
+			constraints = constraints + " or Nom = '" + allTagsToInclude.get(i) + "'";
+		}
+		
+		System.out.println(constraints);
+		
+		try {
+			con = ConnectionProvider.getConnection();
+			stmt = con.createStatement();
+			PreparedStatement query = con.prepareStatement("select * from (\r\n"
+					+ "	select * from ( \r\n"
+					+ "		select * from ItemsItems where IDItems2 = ?)as x1 \r\n"
+					+ "	inner join Items on Items.ID = x1.IDItems1 \r\n"
+					+ "	) as w\r\n"
+					+ "inner join (\r\n"
+					+ "	select * from ItemsTags \r\n"
+					+ "	inner join (select ID from Tags where " + constraints  + ") as x2 \r\n"
+					+ "	on x2.ID = ItemsTags.IDTags \r\n"
+					+ "	) as z \r\n"
+					+ "on w.ID = z.IDItems;");
+			
+			query.setInt(1, idK);
+			
+			
+			boolean isResultSet = query.execute();
 
+			while (true) {
+				if (isResultSet) {
+					ResultSet listItemsReq = query.getResultSet() ;
+					while(listItemsReq.next()) {
+						int IDench = listItemsReq.getInt("ID");
+						String Nom = listItemsReq.getString("Nom");
+						String Descriptif = listItemsReq.getString("Descriptif");
+						int Niveau = listItemsReq.getInt("Niveau");
+						String fileName = listItemsReq.getString("Filename");
+						String Nombre = listItemsReq.getString("Nombre");
+						String Pratiquant = listItemsReq.getString("Pratiquants");
+						String Dispositif = listItemsReq.getString("Dispositif");
+						List<String> etapes = ((ItemDAOJdbcImpl) ItemDAO).getEtapesFromDB(IDench);
+						List<String> details = ((ItemDAOJdbcImpl) ItemDAO).getDetailsFromDB(IDench);
+						//String Nom, String Descriptif, List<String> Tags, List<String> etapes, int Niveau, String Filename, List<String> details, String Nombre, String Pratiquants, String Dispositif
+						Enchainement it = new Enchainement(Nom, Descriptif, null, etapes, Niveau, fileName, details, Nombre, Pratiquant, Dispositif);
+						String display = it.toString();
+						fiche2 = fiche2 + display + "\n##########\n";	
+					}
+					try {
+						listItemsReq.close();
+					} catch (Exception e) {
+						e.printStackTrace();
+						throw new DALException("Erreur closeResult");
+					}
+				}
+				else {
+					if(query.getUpdateCount() == -1) {
+						break;
+					}
+				}
+				isResultSet = query.getMoreResults();
+			}
+		} catch (SQLException throwables) {
+			throwables.printStackTrace();
+		} finally {
+			try {
+				con.close();
+				stmt.close();
+			} catch (Exception e) {
+				throw new DALException("Erreur fermeture");
+			}
+		}
+
+
+
+
+		return fiche2;
+
+	}
+	
+	
 	public static String addType(int idK, String fiche, String type) throws DALException {
 		String fiche2 = fiche;
 		Connection con = null;
@@ -528,7 +616,7 @@ public class Controler {
 			stmt = con.createStatement();
 			PreparedStatement query = con.prepareStatement("select * from Items\r\n"
 					+ "inner join (select * from ItemsItems where IDItems2 = ?) as y \r\n"
-					+ "on y.IDItems1 = Items.ID and Items.Type = ?;;");
+					+ "on y.IDItems1 = Items.ID and Items.Type = ?;");
 			query.setInt(1, idK);
 			query.setString(2, type);
 			boolean isResultSet = query.execute();
@@ -562,8 +650,10 @@ public class Controler {
 							String Nombre = listItemsReq.getString("Nombre");
 							String Pratiquant = listItemsReq.getString("Pratiquants");
 							String Dispositif = listItemsReq.getString("Dispositif");
-							List<String> etapes = ((ItemDAOJdbcImpl) ItemDAO).getEtapesFromDB(idK);
-							List<String> details = ((ItemDAOJdbcImpl) ItemDAO).getDetailsFromDB(idK);
+							int IDEnch = listItemsReq.getInt("ID");
+							List<String> etapes = ((ItemDAOJdbcImpl) ItemDAO).getEtapesFromDB(IDEnch);
+							List<String> details = ((ItemDAOJdbcImpl) ItemDAO).getDetailsFromDB(IDEnch);
+							
 							//String Nom, String Descriptif, List<String> Tags, List<String> etapes, int Niveau, String Filename, List<String> details, String Nombre, String Pratiquants, String Dispositif
 							Enchainement it = new Enchainement(Nom, Descriptif, null, etapes, Niveau, fileName, details, Nombre, Pratiquant, Dispositif);
 							String display = it.toString();
@@ -600,31 +690,79 @@ public class Controler {
 		return fiche2;
 	}
 
-	public static String getStringReq(String nomMainTag, List<String> allTags, List<Item> allItems) {
+	public static List<String> getStringReq(String nomMainTag, List<String> allTags, List<Item> allItems) {
+		List<String> allres = new ArrayList();
 		String strReq = "";
+		String req = ""; // Inutile finalement dans le requestManager;
 		int numTags = allTags.size() + 1;
 		String constraints = "Nom = '" + nomMainTag + "' " ;
 		// Attention si allTags est vide, faire une autre requête (maybe ?)
 		if (numTags > 1) {
 			for (int i = 0; i < numTags-1; i++) {
+				if (!allTags.get(i).equals(nomMainTag)) {
 				constraints = constraints + "or Nom = '" + allTags.get(i) + "' " ;
+				}
+				else {
+					numTags = numTags-1;
+				}
 			}
 		}
-		// Ou jouer avec les ? et on n'a besoin que de la longueur des listes de précisions ?
-		strReq = "select * from Items \r\n"
+		String strReqStem = "select * from Items \r\n"
 				+ "inner join ( select IDItems from (\r\n"
 				+ "select IDItems, count(*) as countItem from \r\n"
 				+ "	(select * from ItemsTags inner join ( select ID from Tags where (" + constraints + ") ) as y on y.ID = ItemsTags.IDTags) as x\r\n"
 				+ "	group by x.IDItems) as y\r\n"
 				+ "	where countItem = " + numTags + "  ) as z\r\n"
-				+ "	on Items.ID = z.IDItems; ";
+				+ "	on Items.ID = z.IDItems ";
+		if (!allItems.isEmpty()) {
+			
+			String constraints2 = "IDItems2 = " + allItems.get(0).getId();
+			int numItems = allItems.size();
+			for (int i = 1; i < numItems; i++) {
+				constraints2 = constraints2 + " or IDItems2 = " + allItems.get(i).getId()  ;
+			}
+			
+			String strReq2 = "select * from Items inner join (\r\n"
+					+ "select * from (\r\n"
+					+ "select ID, count(*) as countItems2 from (" + strReqStem + ") as w\r\n"
+							+ "	inner join (select IDItems1 from ItemsItems where "+ constraints2 +") as w2\r\n"
+							+ "	on w2.IDItems1 = w.ID group by ID) as w3 where countItems2 = "+ numItems + ") as w3 on w3.ID = Items.ID;";
+			strReq = strReq2;
+		}
+		else {
+			strReq = strReqStem + ";";
+		}
 
-
-		return strReq;
+		allres.add(req);
+		allres.add(strReq);
+		return allres;
 	}
 
+	public static List<Item> removeDuplicates(List<Item> allItems ) {
+		List<Item> noDup = new ArrayList();
+		Set<String> set = new HashSet<>();
+		String Nom_cur = "";
+		
+		for (Item it : allItems) {
+			Nom_cur = it.getNom();
+			if (set.add(Nom_cur)) {
+				noDup.add(it);
+			}
+		}
+		
+		return noDup;
+	}
+	
+	
 	public static List<Item> processTagRequest(Tag mainTag,List<Item> allItems, List<String> AllTags ) throws DALException {
 		// getting all items fitting the tag + constraints
+		
+		Set<String> set = new HashSet<>(AllTags);
+		AllTags.clear();
+		AllTags.addAll(set);
+		
+		allItems = removeDuplicates(allItems);
+		
 		List<Item> resList = new ArrayList();
 		int idTag = mainTag.getId();
 		Connection con = null;
@@ -632,8 +770,10 @@ public class Controler {
 		try {
 			con = ConnectionProvider.getConnection();
 			stmt = con.createStatement();
-			String req = getStringReq(mainTag.getNom(), AllTags, allItems);
-			System.out.println(req);
+			List<String> allres = getStringReq(mainTag.getNom(), AllTags, allItems);
+			String req = allres.get(1);
+			String reqDisplay = allres.get(0);
+			//System.out.println(req);
 			PreparedStatement query = con.prepareStatement(req); 
 			boolean isResultSet = query.execute();
 
@@ -645,7 +785,7 @@ public class Controler {
 						if (Type.equals("Enchainement")) {
 							int IDench = listItemsReq.getInt("ID");
 							String Nom = listItemsReq.getString("Nom");
-							System.out.println("Nom de l'enchainement trouvé : " + Nom);
+							//System.out.println("Nom de l'enchainement trouvé : " + Nom);
 							String Descriptif = listItemsReq.getString("Descriptif");
 							int Niveau = listItemsReq.getInt("Niveau");
 							String fileName = listItemsReq.getString("Filename");
@@ -697,14 +837,40 @@ public class Controler {
 		return resList;
 	}
 
-	public static String processItemRequest(Item mainItem, List<Item> allItems, List<String> AllTags, String fiche ) throws DALException {
+	public static List<String> processItemRequest(Item mainItem, List<Item> allItems, List<String> AllTags, String fiche ) throws DALException {
+		List<String> allres = new ArrayList();
+		
 		String fiche2 = fiche;
 		String type2KeyWord = mainItem.getType();
-		System.out.println(type2KeyWord);
+		//System.out.println(type2KeyWord);
 		int idKeyWord = mainItem.getId();
-		System.out.println("Main ID : " + idKeyWord);
+		//System.out.println("Main ID : " + idKeyWord);
 		String keyword = mainItem.getNom();
-
+		List<String> b = new ArrayList();
+		b.add("Enchainement");
+		b.add("Echauffement");
+		b.add("Technique");
+		b.add("Educatif");
+		b.add("Etirement");
+		b.add("Poomsae");
+		b.add("Pas-combats");
+		b.add("Ho Shin Sul");
+		
+		List<String> c = new ArrayList<>(AllTags);
+		c.removeAll(b); // Getting tags outside the authorized ones for items
+		
+		List<String> inters = new ArrayList<>(AllTags);
+		inters.retainAll(b);
+		
+		String req = "Affiche pour la technique " + mainItem.getNom();
+		if (!inters.isEmpty()) {
+		req = req + " les éléments complémentaires suivants : " + inters;
+		}
+		System.out.println(req);
+		
+		if(!c.isEmpty()) {
+			System.out.println("Issue : Unused tags with main Item : " + mainItem.getNom());
+		}
 
 		if (type2KeyWord.equals("Enchainement")) {
 			fiche2 = fiche2 + "#####" + keyword + "######\n\n";
@@ -715,7 +881,7 @@ public class Controler {
 			fiche2 = "##### Echauffements ######\n\n" + fiche2;
 			fiche2 = addType(idKeyWord, fiche2, "Echauffement");
 		}
-
+		
 		if (type2KeyWord.equals("Technique")) {
 			fiche2 = fiche2 + "##### Technique ######\n\n";
 			fiche2 = addType(idKeyWord, fiche2, "Technique");
@@ -735,17 +901,40 @@ public class Controler {
 			fiche2 = fiche2 + "##### Enchainement ######\n\n";
 			fiche2 = fetchEnchForItem(idKeyWord, fiche2);
 		}
+		
+		if ((AllTags.contains("Poomsae") || AllTags.contains("Pas-Combats") || AllTags.contains("Ho Shin Sul") )&& !type2KeyWord.equals("Enchainement")) {
+			// To complete
+			fiche2 = fiche2 + "##### Enchainements spéciaux ######\n\n";
+			
+			List<String> AllTagsToInclude = new ArrayList();
+			if (AllTags.contains("Poomsae")) {
+				AllTagsToInclude.add("Poomsae");
+			}
+			if (AllTags.contains("Pas-Combats")) {
+				AllTagsToInclude.add("Pas-Combats");
+			}
+			if (AllTags.contains("Ho Shin Sul")) {
+				AllTagsToInclude.add("Ho Shin Sul");
+			}
+			
+			fiche2 = fetchEnchForItemWithTags(idKeyWord, fiche2, AllTagsToInclude);
+		}
+		
 		if (AllTags.contains("Etirement")) {
 			fiche2 = fiche2 + "##### Etirement ######\n\n";
 			fiche2 = addType(idKeyWord, fiche2, "Etirement");
 		}
 
-
-		return fiche2;
+		allres.add(req);
+		allres.add(fiche2);
+		return allres;
 	}
 
-	public static String excecuteRequestManager(String keyword, List<String> details, String path) throws DALException, FileNotFoundException {
+	public static List<String> excecuteRequestManager(String keyword, List<String> details, String path) throws DALException, FileNotFoundException {
+		List<String> allres = new ArrayList();
+		
 		String fiche = "";
+		String requete = "Test de l'affichage de la requête";
 		// Type du mot-clef : Item ou Tag
 		String typeKeyWord = ((ItemDAOJdbcImpl) ItemDAO).retrieveType(keyword.trim());
 		// ID du mot clef
@@ -783,23 +972,48 @@ public class Controler {
 
 		if (typeKeyWord.equals("Item")) {
 			// Si le keyWord est un item
-			for (String disp : allTagsString ) {
-				System.out.println("all tags from details : " + disp + "\n");
-			}
+//			for (String disp : allTagsString ) {
+//				System.out.println("all tags from details : " + disp + "\n");
+//			}
 			exportName = mainItem.getNom();
-			fiche = processItemRequest(mainItem, allItems, allTagsString, fiche); // On regroupe finalement requetes et affichage
+			 List<String> allres2 = processItemRequest(mainItem, allItems, allTagsString, fiche); // On regroupe finalement requetes et affichage
+			 fiche = allres2.get(1);
+			 requete = allres2.get(0);
 		}
 		else if (typeKeyWord.equals("Tag")){
 			// Si le keyWord est un Tag
 			exportName = mainTag.getNom();
 			List<Item> resList = processTagRequest(mainTag, allItems, allTagsString);
+			
+			//List<String> mainAllTagsDisplay = new ArrayList(allTagsString);
+			//mailAllTagsDisplay.add(mainTag.getNom());
+			
+			requete = "<html> Requete sur les items ayant le tag principal : " + mainTag.getNom(); 
+			
+			if (!allTagsString.isEmpty()) {
+				requete = requete +   " et tous les tags secondaires : " + allTagsString;
+			}
+			
+			if (!allItems.isEmpty()) {
+				String allItemsDisplay = "[";
+				for (Item it : allItems) {
+					allItemsDisplay = allItemsDisplay + it.getNom() + ", ";
+				}
+				allItemsDisplay = allItemsDisplay + "]";
+				requete = requete + " <br> et contenant également toutes les techniques suivantes : " + allItemsDisplay;
+			}
+			
+			requete = requete + "</html>";
+			
 			for (Item it : resList) {
 				fiche = fiche + "##########\n" + it + "\n";
 			}
 		}
 		else {
 			fiche = "Incorrect request";
-			return fiche;
+			allres.add(requete);
+			allres.add(fiche);
+			return allres;
 		}
 
 		// Export 
@@ -808,7 +1022,9 @@ public class Controler {
 			out.println(fiche);
 		}
 
-		return fiche;
+		allres.add(requete);
+		allres.add(fiche);
+		return allres;
 	}
 
 	//	public static String excecuteRequest(String keyword, List<String> details, String typeSelected, String path) throws DALException, FileNotFoundException {

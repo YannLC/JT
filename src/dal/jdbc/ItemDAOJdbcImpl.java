@@ -739,6 +739,53 @@ public class ItemDAOJdbcImpl implements DAO<Item>{
 		return listEnch;
 
 	}
+	
+	public List<String> getAllNamesTags() throws DALException {
+		ResultSet listEnchreq = null ;
+		List<String> listEnch = new ArrayList<>();
+		Connection con = null;
+		Statement stmt = null;
+
+		try {
+			con = ConnectionProvider.getConnection();
+			stmt = con.createStatement();
+			PreparedStatement query = con.prepareStatement("select Nom FROM ItemsTagsList where Type = 'Tag';");
+			boolean isResultSet = query.execute();
+
+			while (true) {
+				if (isResultSet) {
+					listEnchreq = query.getResultSet() ;
+					while(listEnchreq.next()) {
+						listEnch.add(listEnchreq.getString("Nom"));
+					}
+					try {
+						listEnchreq.close();
+					} catch (Exception e) {
+						e.printStackTrace();
+						throw new DALException("Erreur closeResult");
+					}
+				}
+				else {
+					if(query.getUpdateCount() == -1) {
+						break;
+					}
+				}
+				isResultSet = query.getMoreResults();
+			}
+		} catch (SQLException throwables) {
+			throwables.printStackTrace();
+		} finally {
+			try {
+				con.close();
+				stmt.close();
+			} catch (Exception e) {
+				throw new DALException("Erreur fermeture");
+			}
+		}
+
+		return listEnch;
+
+	}
 
 
 	public String retrieveType(String det) throws DALException {
